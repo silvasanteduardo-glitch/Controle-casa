@@ -1,0 +1,351 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Controle Arduino Bluetooth</title>
+    <!-- Carrega o Tailwind CSS para estilização -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f3f4f6;
+            color: #1f2937;
+        }
+        .container-app {
+            max-width: 420px;
+            margin: auto;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            padding: 24px;
+        }
+        .card {
+            background-color: #ffffff;
+            border-radius: 1.5rem;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+            padding: 24px;
+            width: 100%;
+        }
+        .btn-primary {
+            @apply bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-full shadow-lg transition-transform transform hover:scale-105;
+        }
+        .btn-secondary {
+            @apply bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold py-3 px-6 rounded-full transition-transform transform hover:scale-105;
+        }
+        .status-light {
+            width: 24px;
+            height: 24px;
+            border-radius: 9999px; /* rounded-full */
+            border: 2px solid #e5e7eb; /* gray-200 */
+        }
+        .status-light.on {
+            background-color: #10b981; /* green-500 */
+        }
+        .status-light.off {
+            background-color: #ef4444; /* red-500 */
+        }
+        .message-box {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background-color: rgba(0, 0, 0, 0.7);
+            color: white;
+            padding: 16px 24px;
+            border-radius: 0.75rem;
+            z-index: 1000;
+            text-align: center;
+            display: none;
+            opacity: 0;
+            transition: opacity 0.3s ease-in-out;
+        }
+    </style>
+
+    <!-- Adicionando manifest.json para tornar o app um PWA (Progressive Web App) -->
+    <!-- Este arquivo informa ao navegador como o app deve se comportar quando instalado -->
+    <link rel="manifest" href="data:application/json;base64,eyJpY29ucyI6W3sic2l6ZXMiOiIxOTJ4MTkyIiwidHlwZSI6ImltYWdlL3BuZyIsInNyYyI6Imh0dHBzOi8vcGxhY2Vob2xkLmNvLzE5MngxOTI/dGV4dD1BdXRoIn0seyJzaXplcyI6IjUxMng1MTIiLCJ0eXBlIjoiaW1hZ2UvcG5nIiwic3JjIjoiaHR0cHM6Ly9wbGFjZWhvbGQuY28vNTEyeDUxMj90ZXh0PUF1dGgifV0sIm5hbWUiOiJDb250cm9sZSBCTHQiLCJzaG9ydF9uYW1lIjoiQ29udHJvbCBCTHQiLCJkaXNwbGF5Ijoic3RhbmRhbG9uZSIuImJhY2tncm91bmRfY29sb3IiOiIjMTkyYjliIiwidGhlbWVfY29sb3IiOiIjZmZmZmZmIn0=">
+    
+</head>
+<body class="bg-gray-100 flex items-center justify-center min-h-screen p-4">
+
+    <!-- Caixa de mensagem flutuante para feedback do usuário -->
+    <div id="message-box" class="message-box"></div>
+
+    <div class="container-app">
+        <!-- Página 1: Conexão e Modos -->
+        <div id="page1" class="card space-y-6">
+            <h1 class="text-3xl font-bold text-center">Controle Arduino</h1>
+            
+            <!-- Seção de Conexão Bluetooth -->
+            <div class="space-y-4">
+                <h2 class="text-2xl font-semibold text-center text-gray-700">Conexão Bluetooth</h2>
+                <div class="flex flex-col space-y-4">
+                    <button id="connectBtn" class="btn-primary">Conectar Bluetooth</button>
+                    <button id="disconnectBtn" class="btn-secondary">Desconectar</button>
+                </div>
+            </div>
+
+            <!-- Seção de Modos de Operação -->
+            <div class="space-y-4 pt-6 border-t border-gray-200">
+                <h2 class="text-2xl font-semibold text-center text-gray-700">Modos de Operação</h2>
+                <div class="flex space-x-4 justify-center">
+                    <button id="ecoModeBtn" class="btn-secondary flex-1">Modo Econômico</button>
+                    <button id="normalModeBtn" class="btn-primary flex-1">Modo Normal</button>
+                </div>
+            </div>
+
+            <!-- Seção de Status das Lâmpadas -->
+            <div class="space-y-4 pt-6 border-t border-gray-200">
+                <h2 class="text-2xl font-semibold text-center text-gray-700">Status das Lâmpadas</h2>
+                <div id="statusLightsContainer" class="grid grid-cols-4 sm:grid-cols-4 md:grid-cols-8 gap-4 justify-items-center">
+                    <!-- Quadrados de status serão inseridos aqui via JS -->
+                </div>
+            </div>
+
+            <!-- Botão para navegar para a próxima página -->
+            <div class="pt-6 border-t border-gray-200">
+                <button id="goToPage2Btn" class="btn-primary w-full">Ir para o Painel de Controle</button>
+            </div>
+        </div>
+
+        <!-- Página 2: Controle de Iluminação -->
+        <div id="page2" class="card space-y-6 hidden">
+            <h1 class="text-3xl font-bold text-center">Controle de Iluminação</h1>
+            
+            <div class="grid grid-cols-4 gap-4">
+                <!-- Botões de controle de iluminação serão inseridos aqui via JS -->
+            </div>
+
+            <!-- Botão para voltar para a página inicial -->
+            <div class="pt-6 border-t border-gray-200">
+                <button id="goToPage1Btn" class="btn-secondary w-full">Voltar</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Variáveis globais para a conexão Bluetooth
+        let device, characteristic;
+
+        // UUIDs do serviço e da característica Bluetooth do seu Arduino
+        // IMPORTANTE: Você deve configurar estes UUIDs no seu código Arduino
+        const BLUETOOTH_SERVICE_UUID = '4fafc201-1fb5-459e-8fcc-c5c9c331914b';
+        const BLUETOOTH_CHARACTERISTIC_UUID = 'beb5483e-36e1-4688-b7f5-ea07361b26a8';
+
+        // Função para exibir uma caixa de mensagem temporária
+        function showMessage(text, duration = 3000) {
+            const messageBox = document.getElementById('message-box');
+            messageBox.textContent = text;
+            messageBox.style.display = 'block';
+            setTimeout(() => {
+                messageBox.style.opacity = '1';
+            }, 10);
+            setTimeout(() => {
+                messageBox.style.opacity = '0';
+                setTimeout(() => {
+                    messageBox.style.display = 'none';
+                }, 300);
+            }, duration);
+        }
+
+        // Função para enviar dados ao Arduino
+        async function sendCommandToArduino(command) {
+            if (!device || !characteristic) {
+                showMessage("Erro: Nenhum dispositivo conectado.");
+                return;
+            }
+            try {
+                // Converte a string de comando em um ArrayBuffer
+                const encoder = new TextEncoder();
+                const data = encoder.encode(command);
+                await characteristic.writeValue(data);
+                console.log(`Comando enviado: ${command}`);
+            } catch (error) {
+                console.error("Erro ao enviar comando:", error);
+                showMessage("Erro ao enviar comando. Tente reconectar.");
+            }
+        }
+
+        // --- Lógica de Conexão e Desconexão Bluetooth ---
+        async function connectBluetooth() {
+            try {
+                // Solicita ao navegador para encontrar um dispositivo Bluetooth
+                // Filtra apenas por dispositivos com o UUID de serviço especificado
+                device = await navigator.bluetooth.requestDevice({
+                    filters: [{ services: [BLUETOOTH_SERVICE_UUID] }]
+                });
+
+                // Conecta ao servidor GATT do dispositivo
+                const server = await device.gatt.connect();
+                showMessage("Conectado ao Arduino!");
+                console.log("Servidor GATT conectado.");
+
+                // Obtém o serviço Bluetooth
+                const service = await server.getPrimaryService(BLUETOOTH_SERVICE_UUID);
+                console.log("Serviço encontrado.");
+
+                // Obtém a característica para comunicação
+                characteristic = await service.getCharacteristic(BLUETOOTH_CHARACTERISTIC_UUID);
+                console.log("Característica encontrada.");
+
+                // Habilita os botões de controle após a conexão
+                enableControls(true);
+
+                // Adiciona um evento para quando o dispositivo desconecta
+                device.addEventListener('gattserverdisconnected', onDisconnected);
+            } catch (error) {
+                console.error("Erro de conexão Bluetooth:", error);
+                showMessage("Falha na conexão Bluetooth. Certifique-se de que o dispositivo está ligado.");
+            }
+        }
+
+        function onDisconnected() {
+            showMessage("Dispositivo Bluetooth desconectado.");
+            enableControls(false);
+            console.log("Desconectado do servidor GATT.");
+        }
+
+        function disconnectBluetooth() {
+            if (device && device.gatt.connected) {
+                device.gatt.disconnect();
+                // A função onDisconnected será chamada automaticamente
+            } else {
+                showMessage("Nenhum dispositivo conectado para desconectar.");
+            }
+        }
+
+        // Habilita ou desabilita os botões de controle
+        function enableControls(isEnabled) {
+            const controlButtons = document.querySelectorAll('#page2 button, #ecoModeBtn, #normalModeBtn');
+            controlButtons.forEach(btn => {
+                btn.disabled = !isEnabled;
+                if (isEnabled) {
+                    btn.classList.remove('opacity-50', 'cursor-not-allowed');
+                } else {
+                    btn.classList.add('opacity-50', 'cursor-not-allowed');
+                }
+            });
+            showMessage(isEnabled ? "Controles Habilitados." : "Controles Desabilitados.");
+        }
+        
+        // --- Navegação entre páginas ---
+        const page1 = document.getElementById('page1');
+        const page2 = document.getElementById('page2');
+        const goToPage2Btn = document.getElementById('goToPage2Btn');
+        const goToPage1Btn = document.getElementById('goToPage1Btn');
+
+        function showPage(page) {
+            if (page === 1) {
+                page1.classList.remove('hidden');
+                page2.classList.add('hidden');
+            } else {
+                page1.classList.add('hidden');
+                page2.classList.remove('hidden');
+            }
+        }
+
+        goToPage2Btn.addEventListener('click', () => showPage(2));
+        goToPage1Btn.addEventListener('click', () => showPage(1));
+
+        // --- Lógica da Página 1 e Eventos de Botão ---
+        const connectBtn = document.getElementById('connectBtn');
+        const disconnectBtn = document.getElementById('disconnectBtn');
+        const ecoModeBtn = document.getElementById('ecoModeBtn');
+        const normalModeBtn = document.getElementById('normalModeBtn');
+        const statusLightsContainer = document.getElementById('statusLightsContainer');
+        
+        // Inicialmente, desabilita os controles até que a conexão seja estabelecida
+        window.addEventListener('load', () => enableControls(false));
+
+        // Eventos dos botões de conexão e modo
+        connectBtn.addEventListener('click', connectBluetooth);
+        disconnectBtn.addEventListener('click', disconnectBluetooth);
+
+        ecoModeBtn.addEventListener('click', () => {
+            sendCommandToArduino('eco');
+            showMessage("Modo Econômico ativado.");
+        });
+
+        normalModeBtn.addEventListener('click', () => {
+            sendCommandToArduino('normal');
+            showMessage("Modo Normal ativado.");
+        });
+
+        // Simulação dos status das lâmpadas e criação dos elementos
+        const lightCount = 8; // Simula 8 lâmpadas
+        for (let i = 1; i <= lightCount; i++) {
+            const lightDiv = document.createElement('div');
+            // Inicia com um estado aleatório
+            const isOn = Math.random() > 0.5;
+            lightDiv.className = `status-light cursor-pointer ${isOn ? 'on' : 'off'}`;
+            lightDiv.dataset.status = isOn ? 'on' : 'off';
+            lightDiv.title = `Lâmpada ${i}`;
+            
+            // Adiciona evento de clique para simular a mudança de status
+            lightDiv.addEventListener('click', () => {
+                const currentStatus = lightDiv.dataset.status;
+                const command = `L${i}${currentStatus === 'on' ? 'off' : 'on'}`;
+                sendCommandToArduino(command); // Envia o comando real
+                
+                // Simula a mudança visual
+                if (currentStatus === 'on') {
+                    lightDiv.classList.remove('on');
+                    lightDiv.classList.add('off');
+                    lightDiv.dataset.status = 'off';
+                    showMessage(`Lâmpada ${i} desligada.`);
+                } else {
+                    lightDiv.classList.remove('off');
+                    lightDiv.classList.add('on');
+                    lightDiv.dataset.status = 'on';
+                    showMessage(`Lâmpada ${i} ligada.`);
+                }
+            });
+
+            statusLightsContainer.appendChild(lightDiv);
+        }
+
+        // --- Lógica da Página 2 ---
+        const controlButtonsContainer = page2.querySelector('div.grid');
+        
+        // Define os nomes dos cômodos para os botões
+        const roomNames = [
+            'Cozinha A', 'Cozinha B',
+            'Suíte A', 'Suíte B',
+            'Quarto A', 'Quarto B',
+            'Corredor',
+            'Banheiro 1 A', 'Banheiro 1 B',
+            'Banheiro 2 A', 'Banheiro 2 B',
+            'Área da Piscina',
+            'Garagem A', 'Garagem B',
+            'Jardim de Inverno'
+        ];
+
+        // Cria os botões de controle de iluminação com base na lista de cômodos
+        roomNames.forEach((roomName, index) => {
+            const button = document.createElement('button');
+            // Define o pino do Arduino. Ex: o botão da Cozinha A envia 'L1'
+            const pinNumber = index + 1;
+            button.className = 'btn-primary text-sm';
+            button.textContent = roomName;
+            button.addEventListener('click', () => {
+                sendCommandToArduino(`Luz${pinNumber}`); // Envia comando como "Luz1", "Luz2", etc.
+                showMessage(`Comando enviado para a Iluminação de ${roomName}.`);
+            });
+            controlButtonsContainer.appendChild(button);
+        });
+
+        // --- Lógica do Service Worker para o PWA ---
+        // Ele vai permitir que o app seja instalado e funcione offline
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('data:application/javascript;base64,Y29uc3QgQ0FDSkVfTkFNRSB9ICdyZXYtMyc7CmNvbnN0IEFVVEhfUEFHRVMgPSBbJy8nLCAnL2luZGV4Lmh0bWwnLCAnL2luZGV4L2h0bWwnXTsKCmNvbnN0IG9mZmxpbmVQYWdlID0gJzwvY29udGVudD4nOwoKc2VsZi5hZGRFdmVudExpc3RlbmVyKCdpbnN0YWxsJywgKGV2ZW50KSA9PiB7CiAgZXZlbnQud2FpdEZvcihjaXN5ZS5jYWNoZXMoQ0FDSkVfTkFNZSkuZ2V0KTsKICBpbnN1bGwuY2FjaGUoYXV0aHBhZ2VzLGNhY2hlZCk7Cn0pOwoKc2Vpcy5hZGRFdmVudExpc3RlbmVyKCdmZXRjaCcsIGV2ZW50ID0+IHsKICBldmVudC5yZXNwb25kKGRheW5lLi5tYXRjaChldmVudC5yZXF1ZXN0KS50aGVuKGZ1bmN0aW9uKGNhY2hlZCkgewogICAgcmV0dXJuIGNhY2hlZCB8fCBmZXRjaChldmVudC5yZXF1ZXN0KTsKICB9KS5jYXNpY2goZnVuY3Rpb24oKSB7CiAgICByZXR1cm4gY2FjaGVzZWMubWF0Y2gob2ZmbGluZVBhZ2UpKTsKICB9KSk7Cn0pOw==')
+                .then(reg => console.log('Service Worker registrado com sucesso:', reg.scope))
+                .catch(err => console.log('Falha no registro do Service Worker:', err));
+            });
+        }
+    </script>
+</body>
+</html>
